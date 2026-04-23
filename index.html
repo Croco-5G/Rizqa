@@ -1,1672 +1,637 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>رزقة | نظام إدارة الأعمال</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>متابعة الاشتراكات النشطة</title>
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 
-    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;800;900&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<style>
+:root {
+    --primary: #6366f1;
+    --primary-dark: #4f46e5;
+    --primary-light: #e0e7ff;
+    --success: #10b981;
+    --warning: #f59e0b;
+    --danger: #ef4444;
+    --bg: #f1f5f9;
+    --card: #ffffff;
+    --input: #f8fafc;
+    --text: #1e293b;
+    --muted: #64748b;
+    --border: #e2e8f0;
+    --shadow: 0 4px 6px -1px rgba(0,0,0,0.07);
+    --radius: 14px;
+}
 
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+* { box-sizing: border-box; font-family: 'Tajawal', sans-serif; margin: 0; padding: 0; }
 
-    <script>
-        if (localStorage.getItem('rzq_dark') === 'true') {
-            document.documentElement.classList.add('dark-mode');
-        }
-    </script>
+body {
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 30px 20px;
+}
 
-    <style>
-        /* ============================================================
-           SECTION 0: CSS VARIABLES & DARK MODE
-           هنا تجد جميع ألوان التطبيق، بإمكانك تعديلها بسهولة
-        ============================================================ */
-        :root {
-            --primary:       #6366f1;
-            --primary-dark:  #4f46e5;
-            --primary-light: #e0e7ff;
-            --accent:        #f59e0b;
-            --success:       #10b981;
-            --danger:        #ef4444;
-            --info:          #3b82f6;
-            --purple:        #a855f7;
+/* ─── HEADER ─── */
+.page-header {
+    background: linear-gradient(135deg, #4f46e5, #7c3aed);
+    border-radius: var(--radius);
+    padding: 28px 32px;
+    margin-bottom: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 16px;
+    box-shadow: 0 8px 24px rgba(79,70,229,0.3);
+}
+.page-header h1 {
+    color: white;
+    font-size: 22px;
+    font-weight: 900;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+.page-header h1 i { opacity: 0.9; }
+.header-meta { color: rgba(255,255,255,0.8); font-size: 13px; text-align: left; }
+.header-meta span { display: block; }
+#lastUpdate { font-weight: 700; color: white; }
 
-            --bg-body:    #f1f5f9;
-            --bg-card:    #ffffff;
-            --bg-input:   #f8fafc;
-            --bg-sidebar: #0f172a;
+/* ─── STATS GRID ─── */
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+    margin-bottom: 28px;
+}
+.stat-card {
+    background: var(--card);
+    border-radius: var(--radius);
+    padding: 20px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    box-shadow: var(--shadow);
+    border: 1px solid var(--border);
+}
+.stat-icon {
+    width: 52px;
+    height: 52px;
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+    flex-shrink: 0;
+}
+.stat-icon.blue  { background: #e0e7ff; color: #4f46e5; }
+.stat-icon.green { background: #dcfce7; color: #16a34a; }
+.stat-icon.red   { background: #fee2e2; color: #dc2626; }
+.stat-icon.amber { background: #fef3c7; color: #d97706; }
+.stat-label { font-size: 12px; color: var(--muted); font-weight: 700; margin-bottom: 4px; }
+.stat-value { font-size: 22px; font-weight: 900; color: var(--text); }
 
-            --text-main:  #1e293b;
-            --text-muted: #64748b;
-            --text-white: #ffffff;
-            --border-color: #e2e8f0;
+/* ─── FILTER BAR ─── */
+.filter-bar {
+    background: var(--card);
+    border-radius: var(--radius);
+    padding: 18px 22px;
+    margin-bottom: 22px;
+    box-shadow: var(--shadow);
+    border: 1px solid var(--border);
+    display: flex;
+    gap: 14px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+.search-wrap {
+    position: relative;
+    flex: 1;
+    min-width: 220px;
+}
+.search-wrap i {
+    position: absolute;
+    right: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--muted);
+    font-size: 14px;
+}
+.search-wrap input {
+    width: 100%;
+    padding: 10px 40px 10px 14px;
+    border: 2px solid var(--border);
+    border-radius: 10px;
+    background: var(--input);
+    font-size: 14px;
+    color: var(--text);
+    outline: none;
+    transition: border-color 0.2s;
+}
+.search-wrap input:focus { border-color: var(--primary); }
+.filter-select {
+    padding: 10px 14px;
+    border: 2px solid var(--border);
+    border-radius: 10px;
+    background: var(--input);
+    font-size: 14px;
+    color: var(--text);
+    outline: none;
+    cursor: pointer;
+    font-family: 'Tajawal', sans-serif;
+    transition: border-color 0.2s;
+}
+.filter-select:focus { border-color: var(--primary); }
+.refresh-btn {
+    padding: 10px 18px;
+    border-radius: 10px;
+    border: none;
+    background: var(--primary);
+    color: white;
+    font-weight: 700;
+    font-size: 13px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-family: 'Tajawal', sans-serif;
+    transition: background 0.2s;
+    white-space: nowrap;
+}
+.refresh-btn:hover { background: var(--primary-dark); }
+.refresh-btn.spinning i { animation: spin 0.7s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
 
-            --card-shadow:       0 4px 6px -1px rgba(0,0,0,0.05), 0 2px 4px -1px rgba(0,0,0,0.03);
-            --card-hover-shadow: 0 10px 15px -3px rgba(0,0,0,0.08), 0 4px 6px -2px rgba(0,0,0,0.04);
+/* ─── TABLE ─── */
+.table-wrap {
+    background: var(--card);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    border: 1px solid var(--border);
+    overflow-x: auto;
+    margin-bottom: 20px;
+}
+table { width: 100%; border-collapse: collapse; min-width: 900px; }
+th {
+    background: var(--input);
+    padding: 15px 14px;
+    text-align: center;
+    font-size: 12px;
+    font-weight: 800;
+    color: var(--muted);
+    white-space: nowrap;
+    border-bottom: 2px solid var(--border);
+}
+td {
+    padding: 14px;
+    border-bottom: 1px solid var(--border);
+    text-align: center;
+    font-size: 14px;
+    vertical-align: middle;
+}
+tr:last-child td { border-bottom: none; }
+tr:hover td { background: rgba(99,102,241,0.025); }
 
-            --radius-sm: 8px;
-            --radius-md: 12px;
-            --radius-lg: 16px;
-            --radius-xl: 24px;
+/* Days badge */
+.days-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 5px 12px;
+    border-radius: 20px;
+    font-weight: 800;
+    font-size: 13px;
+}
+.days-badge.urgent  { background: #fee2e2; color: #dc2626; }
+.days-badge.warning { background: #fef3c7; color: #b45309; }
+.days-badge.safe    { background: #dcfce7; color: #15803d; }
 
-            --sidebar-width: 280px;
-            --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        }
+/* Comp badge */
+.comp-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 5px 12px;
+    border-radius: 20px;
+    background: #fce7f3;
+    color: #be185d;
+    font-weight: 800;
+    font-size: 13px;
+    white-space: nowrap;
+}
 
-        /* ===== DARK MODE OVERRIDES ===== */
-        html.dark-mode {
-            --bg-body:    #0f172a;
-            --bg-card:    #1e293b;
-            --bg-input:   #0f172a;
-            --bg-sidebar: #020617;
-            --text-main:  #f1f5f9;
-            --text-muted: #94a3b8;
-            --border-color: #334155;
-            --card-shadow:       0 4px 6px -1px rgba(0,0,0,0.3);
-            --card-hover-shadow: 0 10px 15px -3px rgba(0,0,0,0.4);
-        }
+.customer-cell { font-weight: 700; text-align: right; }
+.phone-cell { direction: ltr; font-size: 13px; color: var(--muted); }
+.sub-cell { font-weight: 700; color: var(--primary); }
+.date-cell { font-size: 12px; color: var(--muted); white-space: nowrap; }
+.paid-cell { font-weight: 800; color: #15803d; }
 
-        /* ============================================================
-           SECTION 1: GLOBAL RESET & TYPOGRAPHY
-        ============================================================ */
-        *, *::before, *::after {
-            box-sizing: border-box;
-            /* تم إزالة سطر الخط من هنا لمنع تشويه الأيقونات */
-            -webkit-tap-highlight-color: transparent;
-        }
-        html, body {
-            width: 100%; min-height: 100vh; overflow-x: hidden;
-        }
-        body {
-            font-family: 'Tajawal', sans-serif; /* تم نقل تعريف الخط هنا */
-            background: var(--bg-body);
-            margin: 0;
-            color: var(--text-main);
-            display: flex;
-            transition: background 0.35s, color 0.35s;
-            -webkit-font-smoothing: antialiased;
-        }
+/* Progress bar */
+.progress-wrap { width: 100%; min-width: 100px; }
+.progress-bar-bg {
+    background: var(--border);
+    border-radius: 6px;
+    height: 6px;
+    overflow: hidden;
+    margin-top: 4px;
+}
+.progress-bar-fill {
+    height: 100%;
+    border-radius: 6px;
+    transition: width 0.3s;
+}
 
-        /* ===== CUSTOM SCROLLBAR ===== */
-        ::-webkit-scrollbar { width: 5px; height: 5px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 20px; }
-        html.dark-mode ::-webkit-scrollbar-thumb { background: #475569; }
-        ::-webkit-scrollbar-thumb:hover { background: var(--primary); }
+/* ─── EMPTY STATE ─── */
+.empty-state {
+    text-align: center;
+    padding: 70px 30px;
+    color: var(--muted);
+}
+.empty-state i { font-size: 52px; opacity: 0.25; margin-bottom: 16px; display: block; }
+.empty-state p { font-size: 16px; font-weight: 700; }
 
-        /* ============================================================
-           SECTION 2: LAYOUT — SIDEBAR + MAIN CONTENT
-        ============================================================ */
+/* ─── LOADING ─── */
+.loading-screen {
+    position: fixed;
+    inset: 0;
+    background: linear-gradient(135deg, #312e81, #1e1b4b);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+    gap: 20px;
+    transition: opacity 0.5s;
+}
+.spinner-wrap {
+    position: relative;
+    width: 80px;
+    height: 80px;
+}
+.ring {
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    border: 4px solid transparent;
+    animation: spin 1s linear infinite;
+}
+.ring-1 { border-top-color: #818cf8; }
+.ring-2 { inset: 12px; border-bottom-color: #a78bfa; animation-duration: 1.4s; animation-direction: reverse; }
+.loading-screen h2 { color: white; font-size: 18px; font-weight: 800; }
+.loading-screen p { color: rgba(255,255,255,0.6); font-size: 13px; }
 
-        /* ---- Sidebar ---- */
-        .sidebar {
-            width: var(--sidebar-width);
-            background: var(--bg-sidebar);
-            color: white;
-            display: flex;
-            flex-direction: column;
-            position: fixed;
-            height: 100dvh;
-            right: 0;
-            top: 0;
-            z-index: 1000;
-            transition: var(--transition);
-            box-shadow: -5px 0 30px rgba(0,0,0,0.25);
-            border-left: 1px solid rgba(255,255,255,0.05);
-        }
+/* ─── FOOTER ─── */
+.page-footer {
+    text-align: center;
+    color: var(--muted);
+    font-size: 12px;
+    padding: 10px 0;
+}
 
-        /* Brand logo area */
-        .brand {
-            padding: 28px 20px 20px;
-            text-align: center;
-            border-bottom: 1px solid rgba(255,255,255,0.06);
-        }
-        .brand-name {
-            font-size: 26px;
-            font-weight: 900;
-            background: linear-gradient(135deg, var(--primary), var(--purple));
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            letter-spacing: -0.5px;
-            display: block;
-        }
-        .brand-tagline {
-            font-size: 11px;
-            color: #475569;
-            margin-top: 3px;
-            display: block;
-        }
-
-        /* User info in sidebar */
-        .sidebar-user {
-            padding: 14px 18px;
-            margin: 8px 10px;
-            background: rgba(255,255,255,0.04);
-            border-radius: var(--radius-md);
-            border: 1px solid rgba(255,255,255,0.06);
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-        .sidebar-user-avatar {
-            width: 36px; height: 36px;
-            border-radius: 50%;
-            background: linear-gradient(135deg, var(--primary), var(--purple));
-            display: flex; align-items: center; justify-content: center;
-            font-size: 15px; color: white; flex-shrink: 0;
-        }
-        .sidebar-user-email {
-            font-size: 12px; color: #64748b; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-        }
-
-        /* Nav menu items */
-        .menu-items { padding: 8px; flex-grow: 1; overflow-y: auto; }
-        .menu-section-label {
-            font-size: 10px; text-transform: uppercase; letter-spacing: 1.5px;
-            color: #334155; padding: 12px 14px 4px; font-weight: 700;
-        }
-        .sidebar-btn {
-            width: 100%; padding: 13px 16px;
-            margin-bottom: 3px; border: none;
-            border-radius: var(--radius-md);
-            background: transparent;
-            color: #64748b;
-            font-size: 14.5px; font-weight: 600;
-            cursor: pointer; text-align: right;
-            display: flex; align-items: center; gap: 11px;
-            transition: var(--transition);
-        }
-        .sidebar-btn i { width: 18px; text-align: center; font-size: 14px; }
-        .sidebar-btn:hover { background: rgba(255,255,255,0.07); color: #e2e8f0; transform: translateX(-3px); }
-        .sidebar-btn.active {
-            background: var(--primary);
-            color: white;
-            box-shadow: 0 4px 14px rgba(99,102,241,0.35);
-        }
-
-        /* Logout button */
-        .sidebar-footer { padding: 10px; border-top: 1px solid rgba(255,255,255,0.05); }
-        .btn-logout {
-            width: 100%; padding: 12px 16px;
-            border: none; border-radius: var(--radius-md);
-            background: rgba(239,68,68,0.1);
-            color: var(--danger);
-            font-size: 14px; font-weight: 700;
-            cursor: pointer; text-align: right;
-            display: flex; align-items: center; gap: 11px;
-            transition: var(--transition);
-        }
-        .btn-logout:hover { background: rgba(239,68,68,0.2); }
-
-        /* ---- Mobile sidebar overlay ---- */
-        .sidebar-overlay {
-            display: none; position: fixed; inset: 0;
-            background: rgba(0,0,0,0.5); z-index: 999;
-            backdrop-filter: blur(2px);
-        }
-        .sidebar-overlay.visible { display: block; }
-
-        /* ---- Main content ---- */
-        .main-content {
-            flex: 1;
-            margin-right: var(--sidebar-width);
-            padding: 28px 30px;
-            transition: var(--transition);
-            min-height: 100vh;
-        }
-
-        /* ---- Top header bar ---- */
-        .top-header {
-            display: flex; align-items: center; justify-content: space-between;
-            margin-bottom: 28px; flex-wrap: wrap; gap: 12px;
-        }
-        .top-header-left { display: flex; align-items: center; gap: 14px; }
-        .hamburger-btn {
-            display: none; width: 40px; height: 40px;
-            border-radius: var(--radius-md); border: 1px solid var(--border-color);
-            background: var(--bg-card); color: var(--text-main);
-            cursor: pointer; align-items: center; justify-content: center;
-            font-size: 16px; box-shadow: var(--card-shadow); flex-shrink: 0;
-        }
-        .page-title { font-size: 22px; font-weight: 800; color: var(--text-main); margin: 0; }
-        .page-subtitle { font-size: 13px; color: var(--text-muted); margin: 2px 0 0; }
-
-        /* Dark mode toggle */
-        .dark-toggle {
-            width: 40px; height: 40px; border-radius: var(--radius-md);
-            border: 1px solid var(--border-color); background: var(--bg-card);
-            color: var(--text-main); cursor: pointer;
-            display: flex; align-items: center; justify-content: center;
-            font-size: 16px; box-shadow: var(--card-shadow); transition: var(--transition);
-        }
-        .dark-toggle:hover { background: var(--primary); color: white; border-color: var(--primary); }
-
-        /* ============================================================
-           SECTION 3: CARDS & STATS GRID
-        ============================================================ */
-        .card {
-            background: var(--bg-card);
-            border-radius: var(--radius-xl);
-            padding: 28px;
-            box-shadow: var(--card-shadow);
-            border: 1px solid var(--border-color);
-            margin-bottom: 24px;
-            transition: var(--transition);
-        }
-        .card:hover { box-shadow: var(--card-hover-shadow); }
-
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-            gap: 18px; margin-bottom: 24px;
-        }
-        .stat-card {
-            background: var(--bg-card);
-            padding: 22px;
-            border-radius: var(--radius-lg);
-            display: flex; align-items: center; gap: 16px;
-            box-shadow: var(--card-shadow);
-            border: 1px solid var(--border-color);
-            transition: var(--transition);
-            animation: fadeInUp 0.4s ease both;
-        }
-        .stat-card:hover { transform: translateY(-3px); box-shadow: var(--card-hover-shadow); }
-        .stat-card:nth-child(1) { animation-delay: 0.05s; }
-        .stat-card:nth-child(2) { animation-delay: 0.10s; }
-        .stat-card:nth-child(3) { animation-delay: 0.15s; }
-        .stat-card:nth-child(4) { animation-delay: 0.20s; }
-
-        .stat-icon {
-            width: 54px; height: 54px;
-            border-radius: 14px;
-            display: flex; align-items: center; justify-content: center;
-            font-size: 22px; flex-shrink: 0;
-        }
-        .stat-label { font-size: 13px; color: var(--text-muted); font-weight: 500; }
-        .stat-value { font-size: 24px; font-weight: 800; color: var(--text-main); line-height: 1.2; }
-
-        /* Icon color variants */
-        .icon-primary { background: #e0e7ff; color: var(--primary); }
-        .icon-success { background: #dcfce7; color: var(--success); }
-        .icon-warning { background: #fef3c7; color: var(--accent); }
-        .icon-info    { background: #dbeafe; color: var(--info); }
-        .icon-danger  { background: #fee2e2; color: var(--danger); }
-        .icon-purple  { background: #f3e8ff; color: var(--purple); }
-        html.dark-mode .icon-primary { background: rgba(99,102,241,0.15); }
-        html.dark-mode .icon-success { background: rgba(16,185,129,0.15); }
-        html.dark-mode .icon-warning { background: rgba(245,158,11,0.15); }
-        html.dark-mode .icon-info    { background: rgba(59,130,246,0.15); }
-        html.dark-mode .icon-danger  { background: rgba(239,68,68,0.15); }
-        html.dark-mode .icon-purple  { background: rgba(168,85,247,0.15); }
-
-        /* ============================================================
-           SECTION 4: PAGE SECTIONS (SPA navigation)
-        ============================================================ */
-        .page-section { display: none; }
-        .page-section.active { display: block; animation: fadeInUp 0.35s ease both; }
-
-        /* ============================================================
-           SECTION 5: FORMS & BUTTONS
-        ============================================================ */
-        .input-group { margin-bottom: 16px; }
-        .input-group label { display: block; font-size: 13px; font-weight: 700; color: var(--text-muted); margin-bottom: 7px; }
-        .input-field {
-            width: 100%; padding: 13px 16px;
-            border-radius: var(--radius-md);
-            border: 2px solid var(--border-color);
-            background: var(--bg-input);
-            color: var(--text-main);
-            font-size: 15px; font-family: 'Tajawal', sans-serif;
-            outline: none; transition: border-color 0.2s;
-        }
-        .input-field:focus { border-color: var(--primary); }
-        html.dark-mode .input-field { color: var(--text-main); }
-
-        .btn {
-            padding: 12px 24px; border-radius: var(--radius-md);
-            font-weight: 700; cursor: pointer; transition: var(--transition);
-            border: none; display: inline-flex; align-items: center;
-            justify-content: center; gap: 8px; font-size: 14.5px;
-            font-family: 'Tajawal', sans-serif;
-        }
-        .btn-primary { background: var(--primary); color: white; }
-        .btn-primary:hover:not(:disabled) { background: var(--primary-dark); transform: translateY(-2px); box-shadow: 0 6px 20px rgba(99,102,241,0.35); }
-        .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
-        .btn-success { background: var(--success); color: white; }
-        .btn-success:hover { opacity: 0.9; transform: translateY(-2px); }
-        .btn-info { background: var(--info); color: white; text-decoration: none; }
-        .btn-info:hover { opacity: 0.9; transform: translateY(-2px); }
-        .btn-outline {
-            background: transparent; color: var(--primary);
-            border: 2px solid var(--primary);
-        }
-        .btn-outline:hover { background: var(--primary); color: white; }
-        .btn-block { width: 100%; }
-
-        /* ============================================================
-           SECTION 6: LOGIN SCREEN (Section A)
-           الشاشة تظهر فقط للمستخدمين غير المسجلين
-        ============================================================ */
-        #login-screen {
-            position: fixed; inset: 0; z-index: 9000;
-            display: flex; flex-direction: column;
-            align-items: center; justify-content: center;
-            padding: 20px;
-            /* Gradient background with animated mesh */
-            background: #0f172a;
-            overflow: hidden;
-        }
-        /* Animated blobs behind the login card */
-        #login-screen::before, #login-screen::after {
-            content: ''; position: absolute; border-radius: 50%;
-            filter: blur(80px); opacity: 0.25; animation: blobFloat 8s ease-in-out infinite alternate;
-        }
-        #login-screen::before {
-            width: 500px; height: 500px; top: -150px; right: -150px;
-            background: radial-gradient(circle, var(--primary) 0%, var(--purple) 100%);
-        }
-        #login-screen::after {
-            width: 400px; height: 400px; bottom: -100px; left: -100px;
-            background: radial-gradient(circle, #06b6d4 0%, var(--primary) 100%);
-            animation-delay: -4s;
-        }
-        @keyframes blobFloat {
-            from { transform: scale(1) translate(0, 0); }
-            to   { transform: scale(1.2) translate(30px, 20px); }
-        }
-
-        .login-card {
-            background: rgba(255,255,255,0.95);
-            backdrop-filter: blur(20px);
-            padding: 48px 40px;
-            border-radius: 32px;
-            width: 100%; max-width: 440px;
-            text-align: center;
-            box-shadow: 0 30px 60px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.1);
-            position: relative; z-index: 1;
-            animation: slideUpFade 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
-        }
-        html.dark-mode .login-card {
-            background: rgba(30,41,59,0.95);
-        }
-        .login-logo {
-            width: 70px; height: 70px; margin: 0 auto 20px;
-            border-radius: 22px;
-            background: linear-gradient(135deg, var(--primary), var(--purple));
-            display: flex; align-items: center; justify-content: center;
-            font-size: 30px; color: white;
-            box-shadow: 0 8px 25px rgba(99,102,241,0.4);
-        }
-        .login-title {
-            font-size: 28px; font-weight: 900;
-            background: linear-gradient(135deg, var(--primary), var(--purple));
-            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-            margin: 0 0 5px;
-        }
-        .login-subtitle { font-size: 14px; color: var(--text-muted); margin: 0 0 30px; }
-        .login-divider {
-            border: none; border-top: 1px dashed var(--border-color);
-            margin: 24px 0;
-        }
-        .login-contact {
-            display: flex; align-items: center; justify-content: center; gap: 12px;
-            flex-wrap: wrap;
-        }
-        .login-contact span { color: var(--text-muted); font-size: 14px; font-weight: 600; }
-
-        /* ============================================================
-           SECTION 7: ONBOARDING SCREEN (Section B)
-           تظهر عند أول دخول للمستخدم لاختيار نوع المؤسسة
-        ============================================================ */
-        #onboarding-screen {
-            position: fixed; inset: 0; z-index: 8000;
-            display: flex; flex-direction: column;
-            align-items: center; justify-content: center;
-            padding: 20px;
-            background: radial-gradient(ellipse at top, #1e1b4b 0%, #0f172a 60%);
-            overflow-y: auto;
-        }
-
-        .onboarding-card {
-            background: var(--bg-card);
-            border-radius: 32px;
-            padding: 48px 40px;
-            width: 100%; max-width: 680px;
-            text-align: center;
-            box-shadow: 0 25px 50px rgba(0,0,0,0.4);
-            animation: slideUpFade 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
-        }
-        .onboarding-title {
-            font-size: 26px; font-weight: 900; color: var(--text-main);
-            margin: 0 0 8px;
-        }
-        .onboarding-subtitle { font-size: 14px; color: var(--text-muted); margin: 0 0 32px; }
-
-        /* Institution type cards grid */
-        .inst-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-            gap: 14px; margin-bottom: 30px;
-        }
-        .inst-card {
-            border: 2px solid var(--border-color);
-            border-radius: var(--radius-lg);
-            padding: 28px 16px 22px;
-            cursor: pointer;
-            transition: var(--transition);
-            background: var(--bg-card);
-            text-align: center;
-            position: relative;
-            overflow: hidden;
-        }
-        .inst-card::after {
-            content: ''; position: absolute; inset: 0;
-            opacity: 0; transition: opacity 0.2s;
-        }
-        .inst-card:hover { border-color: var(--primary); transform: translateY(-6px); box-shadow: 0 12px 30px rgba(99,102,241,0.15); }
-        .inst-card.selected {
-            border-color: var(--primary);
-            background: var(--primary-light);
-            box-shadow: 0 0 0 4px rgba(99,102,241,0.15);
-        }
-        html.dark-mode .inst-card.selected { background: rgba(99,102,241,0.15); }
-        .inst-card-icon {
-            font-size: 38px; margin-bottom: 12px; display: block;
-            height: 52px; line-height: 52px;
-        }
-        .inst-card-title { font-size: 15px; font-weight: 800; color: var(--text-main); margin: 0 0 4px; }
-        .inst-card-desc { font-size: 12px; color: var(--text-muted); margin: 0; }
-
-        /* Checkmark badge for selected card */
-        .inst-check {
-            position: absolute; top: 10px; left: 10px;
-            width: 24px; height: 24px; border-radius: 50%;
-            background: var(--primary); color: white;
-            display: none; align-items: center; justify-content: center;
-            font-size: 11px;
-        }
-        .inst-card.selected .inst-check { display: flex; }
-
-        /* ============================================================
-           SECTION 8: MAIN DASHBOARD (Section C)
-           الشاشة الرئيسية بعد تسجيل الدخول
-        ============================================================ */
-        #main-dashboard { display: flex; width: 100%; }
-        #main-dashboard.hidden { display: none !important; }
-
-        /* Section header used inside pages */
-        .section-header {
-            display: flex; align-items: center; gap: 12px;
-            margin-bottom: 24px; flex-wrap: wrap;
-        }
-        .section-icon {
-            width: 44px; height: 44px; border-radius: 12px;
-            background: var(--primary-light); color: var(--primary);
-            display: flex; align-items: center; justify-content: center;
-            font-size: 18px; flex-shrink: 0;
-        }
-        html.dark-mode .section-icon { background: rgba(99,102,241,0.2); }
-        .section-title { font-size: 18px; font-weight: 800; color: var(--text-main); margin: 0; }
-        .section-sub { font-size: 13px; color: var(--text-muted); margin: 2px 0 0; }
-
-        /* Chart container */
-        .chart-container {
-            position: relative; height: 300px; width: 100%;
-        }
-
-        /* Table styles */
-        .table-wrapper { overflow-x: auto; border-radius: var(--radius-lg); }
-        table { width: 100%; border-collapse: collapse; min-width: 500px; }
-        thead th {
-            background: var(--bg-input); color: var(--text-muted);
-            font-size: 12px; font-weight: 700; text-transform: uppercase;
-            letter-spacing: 0.5px; padding: 12px 16px; text-align: right;
-            border-bottom: 2px solid var(--border-color);
-        }
-        tbody td { padding: 14px 16px; font-size: 14px; border-bottom: 1px solid var(--border-color); }
-        tbody tr:last-child td { border-bottom: none; }
-        tbody tr:hover { background: var(--bg-input); }
-
-        /* Badge / tag */
-        .badge {
-            display: inline-block; padding: 4px 10px;
-            border-radius: 20px; font-size: 12px; font-weight: 700;
-        }
-        .badge-success { background: #dcfce7; color: #16a34a; }
-        .badge-warning { background: #fef3c7; color: #d97706; }
-        .badge-danger  { background: #fee2e2; color: #dc2626; }
-        .badge-info    { background: #dbeafe; color: #2563eb; }
-        html.dark-mode .badge-success { background: rgba(16,185,129,0.2); color: #34d399; }
-        html.dark-mode .badge-warning { background: rgba(245,158,11,0.2); color: #fbbf24; }
-        html.dark-mode .badge-danger  { background: rgba(239,68,68,0.2);  color: #f87171; }
-        html.dark-mode .badge-info    { background: rgba(59,130,246,0.2); color: #60a5fa; }
-
-        /* ============================================================
-           SECTION 9: TOAST NOTIFICATION SYSTEM
-           يُستدعى عبر: showToast('رسالة', 'success'|'error'|'info'|'warning')
-        ============================================================ */
-        #toast-container {
-            position: fixed; bottom: 24px; left: 24px;
-            z-index: 99999;
-            display: flex; flex-direction: column; gap: 10px;
-            pointer-events: none;
-        }
-        .toast {
-            display: flex; align-items: center; gap: 12px;
-            padding: 14px 18px;
-            border-radius: var(--radius-lg);
-            background: var(--bg-sidebar);
-            border: 1px solid rgba(255,255,255,0.08);
-            color: white; font-size: 14px; font-weight: 600;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.4);
-            pointer-events: all; cursor: pointer;
-            min-width: 280px; max-width: 380px;
-            animation: toastIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
-            position: relative; overflow: hidden;
-        }
-        .toast.hiding { animation: toastOut 0.3s ease forwards; }
-        .toast-icon { font-size: 18px; flex-shrink: 0; }
-        .toast-msg { flex: 1; line-height: 1.4; }
-        /* Progress bar at bottom of toast */
-        .toast-progress {
-            position: absolute; bottom: 0; right: 0;
-            height: 3px; background: rgba(255,255,255,0.3);
-            animation: toastProgress 4s linear forwards;
-        }
-        .toast-success .toast-icon { color: var(--success); }
-        .toast-error   .toast-icon { color: var(--danger); }
-        .toast-info    .toast-icon { color: var(--info); }
-        .toast-warning .toast-icon { color: var(--accent); }
-
-        @keyframes toastIn {
-            from { opacity: 0; transform: translateX(-30px) scale(0.95); }
-            to   { opacity: 1; transform: translateX(0) scale(1); }
-        }
-        @keyframes toastOut {
-            from { opacity: 1; transform: translateX(0); }
-            to   { opacity: 0; transform: translateX(-40px); }
-        }
-        @keyframes toastProgress {
-            from { width: 100%; }
-            to   { width: 0%; }
-        }
-
-        /* ============================================================
-           SECTION 10: UTILITY CLASSES
-        ============================================================ */
-        .hidden { display: none !important; }
-        .text-muted { color: var(--text-muted); }
-        .text-center { text-align: center; }
-        .mt-0 { margin-top: 0; }
-        .fw-900 { font-weight: 900; }
-        .gap-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-        .placeholder-box {
-            text-align: center; padding: 60px 20px;
-            color: var(--text-muted);
-        }
-        .placeholder-box i { font-size: 48px; opacity: 0.25; display: block; margin-bottom: 14px; }
-        .placeholder-box p { font-size: 15px; margin: 0; }
-
-        /* Quick action cards on dashboard */
-        .quick-actions { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 14px; }
-        .qa-card {
-            background: var(--bg-card); border: 1px solid var(--border-color);
-            border-radius: var(--radius-lg); padding: 20px 14px;
-            text-align: center; cursor: pointer; transition: var(--transition);
-        }
-        .qa-card:hover { border-color: var(--primary); transform: translateY(-4px); box-shadow: var(--card-hover-shadow); }
-        .qa-card i { font-size: 24px; margin-bottom: 8px; display: block; }
-        .qa-card span { font-size: 13px; font-weight: 700; color: var(--text-main); }
-
-        /* ============================================================
-           SECTION 11: ANIMATIONS
-        ============================================================ */
-        @keyframes fadeInUp {
-            from { opacity: 0; transform: translateY(14px); }
-            to   { opacity: 1; transform: translateY(0); }
-        }
-        @keyframes slideUpFade {
-            from { opacity: 0; transform: translateY(40px) scale(0.97); }
-            to   { opacity: 1; transform: translateY(0) scale(1); }
-        }
-
-        /* Loading spinner */
-        .spinner {
-            width: 22px; height: 22px;
-            border: 3px solid rgba(255,255,255,0.3);
-            border-top-color: white;
-            border-radius: 50%;
-            animation: spin 0.8s linear infinite;
-            display: inline-block;
-        }
-        @keyframes spin { to { transform: rotate(360deg); } }
-
-        /* ============================================================
-           SECTION 12: RESPONSIVE — MOBILE & TABLET
-           نقاط الكسر للشاشات الصغيرة
-        ============================================================ */
-        @media (max-width: 768px) {
-            .sidebar { transform: translateX(100%); }
-            .sidebar.open { transform: translateX(0); }
-            .main-content { margin-right: 0; padding: 18px 16px; }
-            .hamburger-btn { display: flex; }
-            .stats-grid { grid-template-columns: 1fr 1fr; gap: 12px; }
-            .stat-card { padding: 16px; gap: 12px; }
-            .stat-value { font-size: 20px; }
-            .stat-icon { width: 44px; height: 44px; font-size: 18px; border-radius: 12px; }
-            .card { padding: 20px; border-radius: var(--radius-lg); }
-            .top-header { margin-bottom: 20px; }
-            .page-title { font-size: 19px; }
-            #toast-container { bottom: 16px; left: 12px; right: 12px; }
-            .toast { min-width: unset; max-width: unset; width: 100%; }
-            .login-card { padding: 36px 24px; border-radius: 24px; }
-            .onboarding-card { padding: 36px 20px; border-radius: 24px; }
-            .inst-grid { grid-template-columns: 1fr 1fr; }
-            .chart-container { height: 220px; }
-        }
-        @media (max-width: 400px) {
-            .stats-grid { grid-template-columns: 1fr; }
-            .inst-grid { grid-template-columns: 1fr; }
-        }
-    </style>
+/* ─── RESPONSIVE ─── */
+@media (max-width: 640px) {
+    body { padding: 16px 12px; }
+    .page-header { padding: 20px; }
+    .page-header h1 { font-size: 18px; }
+}
+</style>
 </head>
+
 <body>
 
-<div id="login-screen">
-    <div class="login-card">
-        <div class="login-logo"><i class="fas fa-chart-line"></i></div>
-        <h1 class="login-title">رزقة</h1>
-        <p class="login-subtitle">نظام إدارة الأعمال الذكي</p>
+<!-- Loading Screen -->
+<div class="loading-screen" id="loadingScreen">
+    <div class="spinner-wrap">
+        <div class="ring ring-1"></div>
+        <div class="ring ring-2"></div>
+    </div>
+    <h2>جارٍ تحميل بيانات الاشتراكات...</h2>
+    <p>يتم الاتصال بقاعدة البيانات</p>
+</div>
 
-        <div class="input-group">
-            <label for="login-email"><i class="fas fa-envelope"></i> البريد الإلكتروني</label>
-            <input
-                id="login-email" type="email"
-                class="input-field"
-                placeholder="example@rizqa.com"
-                autocomplete="username"
-            >
-        </div>
+<!-- Page Header -->
+<div class="page-header">
+    <h1><i class="fas fa-clock"></i> متابعة الاشتراكات النشطة</h1>
+    <div class="header-meta">
+        <span>آخر تحديث: <span id="lastUpdate">—</span></span>
+        <span id="totalActiveLabel" style="font-size:12px; margin-top:3px;"></span>
+    </div>
+</div>
 
-        <div class="input-group">
-            <label for="login-password"><i class="fas fa-lock"></i> كلمة المرور</label>
-            <input
-                id="login-password" type="password"
-                class="input-field"
-                placeholder="••••••••"
-                autocomplete="current-password"
-            >
-        </div>
-
-        <button class="btn btn-primary btn-block" id="btn-login" style="padding:15px; font-size:16px;">
-            <i class="fas fa-sign-in-alt"></i> دخول للنظام
-        </button>
-
-        <hr class="login-divider">
-
-        <div class="login-contact">
-            <span>ليس لديك حساب؟</span>
-            <a href="https://wa.me/972566912007" target="_blank" rel="noopener noreferrer" class="btn btn-info" style="padding:10px 18px;">
-                <i class="fab fa-whatsapp"></i> تواصل معنا
-            </a>
+<!-- Stats Cards -->
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="stat-icon blue"><i class="fas fa-list-check"></i></div>
+        <div>
+            <div class="stat-label">إجمالي الاشتراكات النشطة</div>
+            <div class="stat-value" id="statTotal">—</div>
         </div>
     </div>
-</div><div id="onboarding-screen" class="hidden">
-    <div class="onboarding-card">
-        <div class="login-logo" style="margin-bottom:18px;"><i class="fas fa-rocket"></i></div>
-        <h2 class="onboarding-title">مرحباً بك في رزقة! 🎉</h2>
-        <p class="onboarding-subtitle">لإعداد مساحة عملك، يرجى تحديد نوع مؤسستك</p>
-
-        <div class="inst-grid" id="inst-cards-container">
-
-            <div class="inst-card" data-type="supermarket">
-                <div class="inst-check"><i class="fas fa-check"></i></div>
-                <span class="inst-card-icon" style="color:#6366f1;">🛒</span>
-                <p class="inst-card-title">سوبرماركت</p>
-                <p class="inst-card-desc">إدارة مبيعات ومخزون</p>
-            </div>
-
-            <div class="inst-card" data-type="pharmacy">
-                <div class="inst-check"><i class="fas fa-check"></i></div>
-                <span class="inst-card-icon" style="color:#10b981;">💊</span>
-                <p class="inst-card-title">صيدلية</p>
-                <p class="inst-card-desc">أدوية ووصفات طبية</p>
-            </div>
-
-            <div class="inst-card" data-type="clinic">
-                <div class="inst-check"><i class="fas fa-check"></i></div>
-                <span class="inst-card-icon" style="color:#3b82f6;">🏥</span>
-                <p class="inst-card-title">عيادة طبية</p>
-                <p class="inst-card-desc">مرضى وحجوزات</p>
-            </div>
-
-            <div class="inst-card" data-type="restaurant">
-                <div class="inst-check"><i class="fas fa-check"></i></div>
-                <span class="inst-card-icon" style="color:#f59e0b;">🍽️</span>
-                <p class="inst-card-title">مطعم</p>
-                <p class="inst-card-desc">طلبات وقوائم طعام</p>
-            </div>
-
-            <div class="inst-card" data-type="realestate">
-                <div class="inst-check"><i class="fas fa-check"></i></div>
-                <span class="inst-card-icon" style="color:#a855f7;">🏢</span>
-                <p class="inst-card-title">عقارات</p>
-                <p class="inst-card-desc">إيجار وبيع عقارات</p>
-            </div>
-
-            <div class="inst-card" data-type="fashion">
-                <div class="inst-check"><i class="fas fa-check"></i></div>
-                <span class="inst-card-icon" style="color:#ec4899;">👔</span>
-                <p class="inst-card-title">محل ملابس</p>
-                <p class="inst-card-desc">أزياء وإكسسوارات</p>
-            </div>
-
-        </div>
-
-        <button class="btn btn-primary btn-block" id="btn-save-inst" disabled style="padding:15px; font-size:16px;">
-            <i class="fas fa-check-circle"></i> حفظ وبدء الاستخدام
-        </button>
-    </div>
-</div><div id="main-dashboard" class="hidden">
-
-    <div class="sidebar" id="app-sidebar">
-        <div class="brand">
-            <span class="brand-name">⚡ رزقة</span>
-            <span class="brand-tagline">نظام إدارة الأعمال الذكي</span>
-        </div>
-
-        <div class="sidebar-user">
-            <div class="sidebar-user-avatar"><i class="fas fa-user"></i></div>
-            <div>
-                <div style="font-size:12px; color:#94a3b8; font-weight:600;" id="sidebar-user-email">—</div>
-                <div style="font-size:11px; color:#475569;" id="sidebar-inst-label">—</div>
-            </div>
-        </div>
-
-        <div class="menu-items" id="sidebar-menu"></div>
-
-        <div class="sidebar-footer">
-            <button class="btn-logout" id="btn-logout">
-                <i class="fas fa-sign-out-alt"></i>
-                تسجيل الخروج
-            </button>
+    <div class="stat-card">
+        <div class="stat-icon red"><i class="fas fa-fire"></i></div>
+        <div>
+            <div class="stat-label">تنتهي خلال 7 أيام</div>
+            <div class="stat-value" id="statUrgent">—</div>
         </div>
     </div>
-
-    <div class="sidebar-overlay" id="sidebar-overlay"></div>
-
-    <div class="main-content" id="main-content-area">
-
-        <div class="top-header">
-            <div class="top-header-left">
-                <button class="hamburger-btn" id="hamburger-btn">
-                    <i class="fas fa-bars"></i>
-                </button>
-                <div>
-                    <h1 class="page-title" id="current-page-title">لوحة القيادة</h1>
-                    <p class="page-subtitle" id="current-page-sub">نظرة عامة على المؤشرات</p>
-                </div>
-            </div>
-            <button class="dark-toggle" id="dark-toggle" title="تبديل الوضع الليلي">
-                <i class="fas fa-moon" id="dark-icon"></i>
-            </button>
+    <div class="stat-card">
+        <div class="stat-icon amber"><i class="fas fa-triangle-exclamation"></i></div>
+        <div>
+            <div class="stat-label">تنتهي خلال 15 يوم</div>
+            <div class="stat-value" id="statWarning">—</div>
         </div>
-
-        <div class="page-section active" id="page-dashboard">
-            <div class="stats-grid" id="dashboard-stats"></div>
-
-            <div class="card">
-                <div class="section-header">
-                    <div class="section-icon"><i class="fas fa-chart-area"></i></div>
-                    <div>
-                        <h3 class="section-title mt-0" id="chart-title">أداء الأسبوع</h3>
-                        <p class="section-sub">آخر 7 أيام</p>
-                    </div>
-                </div>
-                <div class="chart-container">
-                    <canvas id="main-chart"></canvas>
-                </div>
-            </div>
-
-            <div class="card">
-                <div class="section-header">
-                    <div class="section-icon"><i class="fas fa-bolt"></i></div>
-                    <div>
-                        <h3 class="section-title mt-0">الإجراءات السريعة</h3>
-                        <p class="section-sub">الوصول السريع للأقسام الشائعة</p>
-                    </div>
-                </div>
-                <div class="quick-actions" id="quick-actions-container"></div>
-            </div>
-        </div><div class="page-section" id="page-pos">
-            <div class="card">
-                <div class="section-header">
-                    <div class="section-icon" style="background:#dcfce7; color:var(--success);">
-                        <i class="fas fa-cash-register"></i>
-                    </div>
-                    <div>
-                        <h3 class="section-title mt-0">نقطة البيع (POS)</h3>
-                        <p class="section-sub">إدارة المبيعات اليومية</p>
-                    </div>
-                </div>
-                <div class="placeholder-box">
-                    <i class="fas fa-cash-register"></i>
-                    <p>واجهة نقطة البيع ستظهر هنا</p>
-                    <p class="text-muted" style="font-size:13px; margin-top:8px;">سيتم إضافة منطق المبيعات، الباركود، والطباعة قريباً.</p>
-                </div>
-            </div>
-        </div><div class="page-section" id="page-inventory">
-            <div class="card">
-                <div class="section-header">
-                    <div class="section-icon" style="background:#fef3c7; color:var(--accent);">
-                        <i class="fas fa-boxes"></i>
-                    </div>
-                    <div>
-                        <h3 class="section-title mt-0">إدارة المخزون</h3>
-                        <p class="section-sub">تتبع الأصناف والكميات</p>
-                    </div>
-                </div>
-
-                <div class="table-wrapper">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>#</th>
-                                <th>اسم الصنف</th>
-                                <th>الفئة</th>
-                                <th>الكمية</th>
-                                <th>سعر التكلفة</th>
-                                <th>الحالة</th>
-                            </tr>
-                        </thead>
-                        <tbody id="inventory-table-body">
-                            </tbody>
-                    </table>
-                </div>
-            </div>
-        </div><div class="page-section" id="page-prescriptions">
-            <div class="card">
-                <div class="section-header">
-                    <div class="section-icon" style="background:#dbeafe; color:var(--info);">
-                        <i class="fas fa-file-medical"></i>
-                    </div>
-                    <div>
-                        <h3 class="section-title mt-0">الوصفات الطبية</h3>
-                        <p class="section-sub">متابعة وصرف الوصفات</p>
-                    </div>
-                </div>
-                <div class="placeholder-box">
-                    <i class="fas fa-file-prescription"></i>
-                    <p>قائمة الوصفات الطبية ستظهر هنا</p>
-                </div>
-            </div>
-        </div><div class="page-section" id="page-patients">
-            <div class="card">
-                <div class="section-header">
-                    <div class="section-icon" style="background:#dbeafe; color:var(--info);">
-                        <i class="fas fa-procedures"></i>
-                    </div>
-                    <div>
-                        <h3 class="section-title mt-0">إدارة المرضى</h3>
-                        <p class="section-sub">سجلات وملفات المرضى</p>
-                    </div>
-                </div>
-                <div class="placeholder-box">
-                    <i class="fas fa-user-injured"></i>
-                    <p>قائمة المرضى ستظهر هنا</p>
-                </div>
-            </div>
-        </div><div class="page-section" id="page-appointments">
-            <div class="card">
-                <div class="section-header">
-                    <div class="section-icon" style="background:#dcfce7; color:var(--success);">
-                        <i class="fas fa-calendar-check"></i>
-                    </div>
-                    <div>
-                        <h3 class="section-title mt-0">الحجوزات</h3>
-                        <p class="section-sub">جدول مواعيد المرضى</p>
-                    </div>
-                </div>
-                <div class="placeholder-box">
-                    <i class="fas fa-calendar-alt"></i>
-                    <p>جدول الحجوزات سيظهر هنا</p>
-                </div>
-            </div>
-        </div><div class="page-section" id="page-orders">
-            <div class="card">
-                <div class="section-header">
-                    <div class="section-icon" style="background:#fef3c7; color:var(--accent);">
-                        <i class="fas fa-utensils"></i>
-                    </div>
-                    <div>
-                        <h3 class="section-title mt-0">الطلبات</h3>
-                        <p class="section-sub">إدارة طلبات المطعم</p>
-                    </div>
-                </div>
-                <div class="placeholder-box">
-                    <i class="fas fa-receipt"></i>
-                    <p>قائمة الطلبات ستظهر هنا</p>
-                </div>
-            </div>
-        </div><div class="page-section" id="page-properties">
-            <div class="card">
-                <div class="section-header">
-                    <div class="section-icon" style="background:#f3e8ff; color:var(--purple);">
-                        <i class="fas fa-building"></i>
-                    </div>
-                    <div>
-                        <h3 class="section-title mt-0">العقارات</h3>
-                        <p class="section-sub">إدارة الوحدات العقارية</p>
-                    </div>
-                </div>
-                <div class="placeholder-box">
-                    <i class="fas fa-city"></i>
-                    <p>قائمة العقارات ستظهر هنا</p>
-                </div>
-            </div>
-        </div><div class="page-section" id="page-settings">
-            <div class="card">
-                <div class="section-header">
-                    <div class="section-icon"><i class="fas fa-cog"></i></div>
-                    <div>
-                        <h3 class="section-title mt-0">إعدادات النظام</h3>
-                        <p class="section-sub">تخصيص مساحة العمل</p>
-                    </div>
-                </div>
-                <div class="placeholder-box">
-                    <i class="fas fa-sliders-h"></i>
-                    <p>إعدادات المؤسسة والحساب ستظهر هنا</p>
-                </div>
-            </div>
-        </div></div></div><div id="toast-container"></div>
-
-
-<script type="module">
-    /* ============================================================
-       [1] FIREBASE INITIALIZATION
-       تهيئة Firebase — لا تُعدّل هذه الإعدادات إلا إذا تغيّر المشروع
-    ============================================================ */
-    import { initializeApp }
-        from "https://www.gstatic.com/firebasejs/12.12.1/firebase-app.js";
-    import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut }
-        from "https://www.gstatic.com/firebasejs/12.12.1/firebase-auth.js";
-    import { getFirestore, doc, setDoc, getDoc, onSnapshot }
-        from "https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js";
-
-    const firebaseConfig = {
-        apiKey:            "AIzaSyBQJGwgnoP-0QpNKfye2eI2bVkN2mcW8H8",
-        authDomain:        "rizqa-ea1b7.firebaseapp.com",
-        projectId:         "rizqa-ea1b7",
-        storageBucket:     "rizqa-ea1b7.firebasestorage.app",
-        messagingSenderId: "65354881362",
-        appId:             "1:65354881362:web:053e242eddefe6fca5428b"
-    };
-
-    const firebaseApp = initializeApp(firebaseConfig);
-    const auth        = getAuth(firebaseApp);
-    const db          = getFirestore(firebaseApp);
-
-    /* ============================================================
-       [2] GLOBAL STATE
-       المتغيرات العامة للتطبيق
-    ============================================================ */
-    let currentUserData      = null; // بيانات المستخدم من Firestore
-    let selectedInstType     = null; // النوع المختار في شاشة الإعداد
-    let unsubscribeRealtime  = null; // إلغاء الاشتراك في onSnapshot
-    let chartInstance        = null; // مثيل Chart.js الحالي
-
-    /* ============================================================
-       [3] UI ELEMENT REFERENCES
-       مراجع لعناصر الـ HTML
-    ============================================================ */
-    const $loginScreen     = document.getElementById('login-screen');
-    const $onboardScreen   = document.getElementById('onboarding-screen');
-    const $mainDashboard   = document.getElementById('main-dashboard');
-    const $sidebarMenu     = document.getElementById('sidebar-menu');
-    const $dashboardStats  = document.getElementById('dashboard-stats');
-    const $sidebarUserEmail = document.getElementById('sidebar-user-email');
-    const $sidebarInstLabel = document.getElementById('sidebar-inst-label');
-    const $appSidebar      = document.getElementById('app-sidebar');
-    const $sidebarOverlay  = document.getElementById('sidebar-overlay');
-    const $hamburgerBtn    = document.getElementById('hamburger-btn');
-    const $darkToggle      = document.getElementById('dark-toggle');
-    const $darkIcon        = document.getElementById('dark-icon');
-
-    /* ============================================================
-       [4] TOAST NOTIFICATION SYSTEM
-       showToast(message, type) — type: 'success'|'error'|'info'|'warning'
-    ============================================================ */
-    const toastIcons = {
-        success: 'fa-check-circle',
-        error:   'fa-times-circle',
-        info:    'fa-info-circle',
-        warning: 'fa-exclamation-triangle',
-    };
-
-    function showToast(message, type = 'info', duration = 4000) {
-        const container = document.getElementById('toast-container');
-        const toast = document.createElement('div');
-        toast.className = `toast toast-${type}`;
-        toast.innerHTML = `
-            <i class="fas ${toastIcons[type] || toastIcons.info} toast-icon"></i>
-            <span class="toast-msg">${message}</span>
-            <div class="toast-progress" style="animation-duration:${duration}ms;"></div>
-        `;
-        // Click to dismiss immediately
-        toast.addEventListener('click', () => dismissToast(toast));
-        container.appendChild(toast);
-        // Auto-dismiss
-        setTimeout(() => dismissToast(toast), duration);
-    }
-
-    function dismissToast(toast) {
-        toast.classList.add('hiding');
-        toast.addEventListener('animationend', () => toast.remove());
-    }
-
-    /* ============================================================
-       [5] DARK MODE TOGGLE
-       حفظ التفضيل في localStorage
-    ============================================================ */
-    function applyDarkMode(isDark) {
-        document.documentElement.classList.toggle('dark-mode', isDark);
-        $darkIcon.className = isDark ? 'fas fa-sun' : 'fas fa-moon';
-        localStorage.setItem('rzq_dark', isDark ? 'true' : 'false');
-    }
-
-    $darkToggle.addEventListener('click', () => {
-        const isDark = !document.documentElement.classList.contains('dark-mode');
-        applyDarkMode(isDark);
-    });
-
-    // Apply stored preference on load
-    applyDarkMode(localStorage.getItem('rzq_dark') === 'true');
-
-    /* ============================================================
-       [6] MOBILE SIDEBAR TOGGLE
-    ============================================================ */
-    function openSidebar()  { $appSidebar.classList.add('open'); $sidebarOverlay.classList.add('visible'); }
-    function closeSidebar() { $appSidebar.classList.remove('open'); $sidebarOverlay.classList.remove('visible'); }
-
-    $hamburgerBtn.addEventListener('click', openSidebar);
-    $sidebarOverlay.addEventListener('click', closeSidebar);
-
-    /* ============================================================
-       [7] SPA NAVIGATION — navigate between page-sections
-       يُستدعى: navigateTo('dashboard')
-       تغيير روابط القائمة يتم في instConfigs أدناه
-    ============================================================ */
-    function navigateTo(pageId, btnEl) {
-        // Remove active from all sidebar buttons
-        document.querySelectorAll('#sidebar-menu .sidebar-btn').forEach(b => b.classList.remove('active'));
-        if (btnEl) btnEl.classList.add('active');
-
-        // Hide all page sections, show target
-        document.querySelectorAll('.page-section').forEach(p => p.classList.remove('active'));
-        const target = document.getElementById('page-' + pageId);
-        if (target) target.classList.add('active');
-        else document.getElementById('page-dashboard').classList.add('active');
-
-        // Update top header title
-        const btnText = btnEl ? btnEl.querySelector('span')?.textContent || pageId : pageId;
-        document.getElementById('current-page-title').textContent = btnText;
-
-        // Close mobile sidebar
-        closeSidebar();
-    }
-
-    // Expose globally for onclick attributes in sidebar (generated HTML)
-    window.navigateTo = navigateTo;
-
-    /* ============================================================
-       [8] AUTH FLOW — onAuthStateChanged (Firebase Router)
-       الراوتر الرئيسي: يتحكم في أي شاشة تظهر
-    ============================================================ */
-    onAuthStateChanged(auth, async (user) => {
-        if (user) {
-            /* ---- User is logged in ---- */
-            $loginScreen.classList.add('hidden');
-            $sidebarUserEmail.textContent = user.email;
-
-            try {
-                const userRef  = doc(db, 'users', user.uid);
-                const userSnap = await getDoc(userRef);
-
-                if (userSnap.exists() && userSnap.data().institution_type) {
-                    // ✅ Already onboarded — go straight to dashboard
-                    currentUserData = userSnap.data();
-                    showDashboard(currentUserData.institution_type);
-                    startRealtimeSync(user.uid);
-                } else {
-                    // 🆕 First time — show onboarding
-                    $onboardScreen.classList.remove('hidden');
-                    $mainDashboard.classList.add('hidden');
-                }
-            } catch (err) {
-                console.error('Firestore error:', err);
-                showToast('خطأ في الاتصال بقاعدة البيانات. تحقق من قواعد Firestore.', 'error', 6000);
-                await signOut(auth);
-            }
-        } else {
-            /* ---- User is logged out ---- */
-            if (unsubscribeRealtime) { unsubscribeRealtime(); unsubscribeRealtime = null; }
-            currentUserData = null;
-
-            $loginScreen.classList.remove('hidden');
-            $onboardScreen.classList.add('hidden');
-            $mainDashboard.classList.add('hidden');
-
-            // Clear inputs
-            document.getElementById('login-email').value    = '';
-            document.getElementById('login-password').value = '';
-        }
-    });
-
-    /* ============================================================
-       [9] LOGIN BUTTON HANDLER
-    ============================================================ */
-    document.getElementById('btn-login').addEventListener('click', async () => {
-        const email = document.getElementById('login-email').value.trim();
-        const pass  = document.getElementById('login-password').value;
-        const btn   = document.getElementById('btn-login');
-
-        if (!email || !pass) {
-            showToast('يرجى إدخال البريد الإلكتروني وكلمة المرور', 'warning');
-            return;
-        }
-
-        // Show loading state
-        btn.disabled  = true;
-        btn.innerHTML = `<div class="spinner"></div> جارٍ التحقق...`;
-
-        try {
-            await signInWithEmailAndPassword(auth, email, pass);
-            showToast('تم تسجيل الدخول بنجاح ✅', 'success');
-        } catch (err) {
-            // Map Firebase error codes to user-friendly Arabic messages
-            const msgs = {
-                'auth/invalid-credential':    'بيانات الدخول غير صحيحة، تحقق من البريد وكلمة المرور.',
-                'auth/user-not-found':        'لا يوجد حساب بهذا البريد الإلكتروني.',
-                'auth/wrong-password':        'كلمة المرور غير صحيحة.',
-                'auth/too-many-requests':     'تم حظر الدخول مؤقتاً بسبب كثرة المحاولات. حاول لاحقاً.',
-                'auth/network-request-failed':'فشل الاتصال بالإنترنت، تحقق من الشبكة.',
-            };
-            showToast(msgs[err.code] || `خطأ: ${err.message}`, 'error', 6000);
-        } finally {
-            btn.disabled  = false;
-            btn.innerHTML = `<i class="fas fa-sign-in-alt"></i> دخول للنظام`;
-        }
-    });
-
-    // Allow pressing Enter to submit
-    document.getElementById('login-password').addEventListener('keydown', e => {
-        if (e.key === 'Enter') document.getElementById('btn-login').click();
-    });
-
-    /* ============================================================
-       [10] LOGOUT BUTTON
-    ============================================================ */
-    document.getElementById('btn-logout').addEventListener('click', async () => {
-        await signOut(auth);
-        showToast('تم تسجيل الخروج بنجاح', 'info');
-    });
-
-    /* ============================================================
-       [11] ONBOARDING — Institution selection logic
-    ============================================================ */
-    const instCards     = document.querySelectorAll('.inst-card');
-    const btnSaveInst   = document.getElementById('btn-save-inst');
-
-    instCards.forEach(card => {
-        card.addEventListener('click', () => {
-            instCards.forEach(c => c.classList.remove('selected'));
-            card.classList.add('selected');
-            selectedInstType    = card.dataset.type;
-            btnSaveInst.disabled = false;
-        });
-    });
-
-    btnSaveInst.addEventListener('click', async () => {
-        if (!selectedInstType) return;
-        const user = auth.currentUser;
-        if (!user) return;
-
-        btnSaveInst.disabled  = true;
-        btnSaveInst.innerHTML = `<div class="spinner"></div> جارٍ الحفظ...`;
-
-        const initData = {
-            institution_type: selectedInstType,
-            created_at: new Date().toISOString(),
-            stats: getMockStats(selectedInstType),
-        };
-
-        try {
-            await setDoc(doc(db, 'users', user.uid), initData, { merge: true });
-            currentUserData = initData;
-            $onboardScreen.classList.add('hidden');
-            showDashboard(selectedInstType);
-            startRealtimeSync(user.uid);
-            showToast('تم الحفظ! مرحباً بك في رزقة 🎉', 'success');
-        } catch (err) {
-            console.error(err);
-            showToast('حدث خطأ أثناء الحفظ. تحقق من قواعد Firestore.', 'error');
-        } finally {
-            btnSaveInst.disabled  = false;
-            btnSaveInst.innerHTML = `<i class="fas fa-check-circle"></i> حفظ وبدء الاستخدام`;
-        }
-    });
-
-    /* ============================================================
-       [12] REAL-TIME SYNC — onSnapshot listener
-       تحديث الإحصاءات فور أي تغيير في Firestore
-    ============================================================ */
-    function startRealtimeSync(uid) {
-        if (unsubscribeRealtime) unsubscribeRealtime();
-        const userRef = doc(db, 'users', uid);
-        unsubscribeRealtime = onSnapshot(userRef, snap => {
-            if (snap.exists()) {
-                currentUserData = snap.data();
-                renderStats(currentUserData.institution_type, currentUserData.stats);
-            }
-        });
-    }
-
-    /* ============================================================
-       [13] INSTITUTION CONFIGS
-       === هنا تُضاف / تُعدَّل أنواع المؤسسات ===
-       كل نوع يحتوي على:
-         - title:    اسم لوحة التحكم
-         - label:    التسمية في الـ sidebar
-         - emoji:    رمز تعبيري
-         - menu:     روابط الـ sidebar (id, icon, text)
-         - stats:    بطاقات الإحصاء (key, label, icon, colorClass, suffix)
-         - chartLabel: اسم محور Y في الرسم البياني
-         - chartColor: لون الرسم البياني
-         - chartData:  بيانات تجريبية للأسبوع
-         - quickActions: الإجراءات السريعة في الصفحة الرئيسية
-    ============================================================ */
-    const instConfigs = {
-
-        // ---- 1. سوبرماركت ----
-        supermarket: {
-            title:      'لوحة تحكم السوبرماركت',
-            label:      '🛒 سوبرماركت',
-            menu: [
-                { id: 'dashboard',  icon: 'fa-chart-pie',     text: 'الرئيسية' },
-                { id: 'pos',        icon: 'fa-cash-register', text: 'نقطة البيع' },
-                { id: 'inventory',  icon: 'fa-boxes',         text: 'المخزون' },
-                { id: 'settings',   icon: 'fa-cog',           text: 'الإعدادات' },
-            ],
-            stats: [
-                { key: 'sales',     label: 'مبيعات اليوم',     icon: 'fa-shopping-bag',       color: 'icon-primary', suffix: ' ₪' },
-                { key: 'customers', label: 'عدد العملاء',      icon: 'fa-users',              color: 'icon-info',    suffix: '' },
-                { key: 'low_stock', label: 'نواقص المخزون',    icon: 'fa-exclamation-circle', color: 'icon-danger',  suffix: ' صنف' },
-                { key: 'profit',    label: 'الربح الصافي',     icon: 'fa-wallet',             color: 'icon-success', suffix: ' ₪' },
-            ],
-            chartLabel: 'المبيعات (₪)',
-            chartColor: '#6366f1',
-            chartData:  [1200, 1900, 3000, 2500, 3200, 4100, 4500],
-            quickActions: [
-                { icon: 'fa-plus-circle',   color: 'var(--primary)', text: 'بيعة جديدة',    page: 'pos' },
-                { icon: 'fa-boxes',         color: 'var(--accent)',  text: 'المخزون',        page: 'inventory' },
-                { icon: 'fa-file-invoice',  color: 'var(--success)', text: 'التقارير',       page: 'dashboard' },
-                { icon: 'fa-cog',           color: 'var(--info)',    text: 'الإعدادات',      page: 'settings' },
-            ],
-        },
-
-        // ---- 2. صيدلية ----
-        pharmacy: {
-            title:      'نظام إدارة الصيدلية',
-            label:      '💊 صيدلية',
-            menu: [
-                { id: 'dashboard',     icon: 'fa-chart-pie',       text: 'الرئيسية' },
-                { id: 'pos',           icon: 'fa-cash-register',   text: 'الصرف' },
-                { id: 'inventory',     icon: 'fa-pills',           text: 'الأدوية' },
-                { id: 'prescriptions', icon: 'fa-file-medical',    text: 'الوصفات' },
-                { id: 'settings',      icon: 'fa-cog',             text: 'الإعدادات' },
-            ],
-            stats: [
-                { key: 'sales',       label: 'مبيعات اليوم',           icon: 'fa-hand-holding-usd', color: 'icon-success', suffix: ' ₪' },
-                { key: 'prescriptions',label: 'وصفات مصروفة',          icon: 'fa-file-prescription',color: 'icon-info',    suffix: '' },
-                { key: 'expired',     label: 'أدوية منتهية الصلاحية', icon: 'fa-calendar-times',   color: 'icon-danger',  suffix: ' دواء' },
-                { key: 'profit',      label: 'الربح الصافي',           icon: 'fa-wallet',           color: 'icon-primary', suffix: ' ₪' },
-            ],
-            chartLabel: 'المبيعات (₪)',
-            chartColor: '#10b981',
-            chartData:  [800, 1200, 1500, 1300, 1700, 2200, 1850],
-            quickActions: [
-                { icon: 'fa-pills',          color: 'var(--success)', text: 'صرف دواء',    page: 'pos' },
-                { icon: 'fa-file-medical',   color: 'var(--info)',    text: 'الوصفات',     page: 'prescriptions' },
-                { icon: 'fa-calendar-times', color: 'var(--danger)',  text: 'منتهي الصل.', page: 'inventory' },
-                { icon: 'fa-cog',            color: 'var(--primary)', text: 'الإعدادات',   page: 'settings' },
-            ],
-        },
-
-        // ---- 3. عيادة طبية ----
-        clinic: {
-            title:      'نظام إدارة العيادة',
-            label:      '🏥 عيادة طبية',
-            menu: [
-                { id: 'dashboard',    icon: 'fa-chart-pie',    text: 'الرئيسية' },
-                { id: 'appointments', icon: 'fa-calendar-check',text: 'الحجوزات' },
-                { id: 'patients',     icon: 'fa-procedures',   text: 'المرضى' },
-                { id: 'settings',     icon: 'fa-cog',          text: 'الإعدادات' },
-            ],
-            stats: [
-                { key: 'appointments_today', label: 'حجوزات اليوم', icon: 'fa-user-md',   color: 'icon-primary', suffix: ' مريض' },
-                { key: 'total_patients',     label: 'إجمالي المرضى',icon: 'fa-users',     color: 'icon-info',    suffix: '' },
-                { key: 'revenue',            label: 'إيرادات اليوم', icon: 'fa-wallet',    color: 'icon-success', suffix: ' ₪' },
-                { key: 'pending',            label: 'في الانتظار',   icon: 'fa-hourglass-half', color: 'icon-warning', suffix: '' },
-            ],
-            chartLabel: 'عدد المرضى',
-            chartColor: '#3b82f6',
-            chartData:  [10, 15, 12, 18, 20, 25, 18],
-            quickActions: [
-                { icon: 'fa-calendar-plus', color: 'var(--primary)', text: 'حجز جديد',    page: 'appointments' },
-                { icon: 'fa-user-plus',     color: 'var(--info)',    text: 'مريض جديد',   page: 'patients' },
-                { icon: 'fa-calendar-check',color: 'var(--success)', text: 'الحجوزات',    page: 'appointments' },
-                { icon: 'fa-cog',           color: 'var(--accent)',  text: 'الإعدادات',   page: 'settings' },
-            ],
-        },
-
-        // ---- 4. مطعم ----
-        restaurant: {
-            title:      'نظام إدارة المطعم',
-            label:      '🍽️ مطعم',
-            menu: [
-                { id: 'dashboard', icon: 'fa-chart-pie',    text: 'الرئيسية' },
-                { id: 'orders',    icon: 'fa-utensils',     text: 'الطلبات' },
-                { id: 'pos',       icon: 'fa-cash-register',text: 'الكاشير' },
-                { id: 'inventory', icon: 'fa-boxes',        text: 'المواد' },
-                { id: 'settings',  icon: 'fa-cog',          text: 'الإعدادات' },
-            ],
-            stats: [
-                { key: 'sales',        label: 'مبيعات اليوم', icon: 'fa-fire',         color: 'icon-danger',  suffix: ' ₪' },
-                { key: 'orders',       label: 'طلبات اليوم',  icon: 'fa-utensils',     color: 'icon-info',    suffix: '' },
-                { key: 'tables',       label: 'طاولات مشغولة',icon: 'fa-chair',        color: 'icon-warning', suffix: ' طاولة' },
-                { key: 'profit',       label: 'الربح الصافي', icon: 'fa-wallet',       color: 'icon-success', suffix: ' ₪' },
-            ],
-            chartLabel: 'المبيعات (₪)',
-            chartColor: '#f59e0b',
-            chartData:  [900, 1600, 2100, 1800, 2400, 3100, 2800],
-            quickActions: [
-                { icon: 'fa-plus-circle', color: 'var(--danger)',  text: 'طلب جديد',    page: 'orders' },
-                { icon: 'fa-utensils',    color: 'var(--accent)',  text: 'الطلبات',     page: 'orders' },
-                { icon: 'fa-boxes',       color: 'var(--success)', text: 'المواد',      page: 'inventory' },
-                { icon: 'fa-cog',         color: 'var(--primary)', text: 'الإعدادات',  page: 'settings' },
-            ],
-        },
-
-        // ---- 5. عقارات ----
-        realestate: {
-            title:      'نظام إدارة العقارات',
-            label:      '🏢 عقارات',
-            menu: [
-                { id: 'dashboard',   icon: 'fa-chart-pie', text: 'الرئيسية' },
-                { id: 'properties',  icon: 'fa-building',  text: 'العقارات' },
-                { id: 'pos',         icon: 'fa-file-signature', text: 'العقود' },
-                { id: 'settings',    icon: 'fa-cog',       text: 'الإعدادات' },
-            ],
-            stats: [
-                { key: 'properties', label: 'إجمالي العقارات', icon: 'fa-city',         color: 'icon-purple', suffix: ' وحدة' },
-                { key: 'rented',     label: 'مؤجرة',           icon: 'fa-check-circle', color: 'icon-success',suffix: ' وحدة' },
-                { key: 'available',  label: 'متاحة',           icon: 'fa-door-open',    color: 'icon-info',   suffix: ' وحدة' },
-                { key: 'revenue',    label: 'إيرادات الشهر',   icon: 'fa-wallet',       color: 'icon-primary',suffix: ' ₪' },
-            ],
-            chartLabel: 'الإيرادات (₪)',
-            chartColor: '#a855f7',
-            chartData:  [5000, 7200, 6500, 8100, 7800, 9000, 8600],
-            quickActions: [
-                { icon: 'fa-plus-circle', color: 'var(--purple)',  text: 'عقار جديد',  page: 'properties' },
-                { icon: 'fa-building',    color: 'var(--info)',    text: 'العقارات',   page: 'properties' },
-                { icon: 'fa-file-signature', color: 'var(--success)', text: 'العقود', page: 'pos' },
-                { icon: 'fa-cog',         color: 'var(--accent)',  text: 'الإعدادات', page: 'settings' },
-            ],
-        },
-
-        // ---- 6. محل ملابس ----
-        fashion: {
-            title:      'نظام إدارة المتجر',
-            label:      '👔 محل ملابس',
-            menu: [
-                { id: 'dashboard', icon: 'fa-chart-pie',     text: 'الرئيسية' },
-                { id: 'pos',       icon: 'fa-cash-register', text: 'نقطة البيع' },
-                { id: 'inventory', icon: 'fa-tshirt',        text: 'المنتجات' },
-                { id: 'settings',  icon: 'fa-cog',           text: 'الإعدادات' },
-            ],
-            stats: [
-                { key: 'sales',     label: 'مبيعات اليوم', icon: 'fa-shopping-bag', color: 'icon-danger',  suffix: ' ₪' },
-                { key: 'items',     label: 'قطع مباعة',    icon: 'fa-tshirt',       color: 'icon-primary', suffix: ' قطعة' },
-                { key: 'customers', label: 'عملاء جدد',    icon: 'fa-user-plus',    color: 'icon-info',    suffix: '' },
-                { key: 'profit',    label: 'الربح الصافي', icon: 'fa-wallet',       color: 'icon-success', suffix: ' ₪' },
-            ],
-            chartLabel: 'المبيعات (₪)',
-            chartColor: '#ec4899',
-            chartData:  [700, 1100, 1400, 1000, 1600, 2000, 1750],
-            quickActions: [
-                { icon: 'fa-plus-circle', color: '#ec4899',       text: 'بيعة جديدة',  page: 'pos' },
-                { icon: 'fa-tshirt',      color: 'var(--accent)', text: 'المنتجات',    page: 'inventory' },
-                { icon: 'fa-users',       color: 'var(--info)',   text: 'العملاء',     page: 'dashboard' },
-                { icon: 'fa-cog',         color: 'var(--primary)',text: 'الإعدادات',   page: 'settings' },
-            ],
-        },
-
-    };
-
-    /* ============================================================
-       [14] MOCK STATS DATA
-       أرقام تجريبية للعرض — ستُستبدل بالبيانات الحقيقية من Firestore
-       لكل institution_type
-    ============================================================ */
-    function getMockStats(type) {
-        const mockMap = {
-            supermarket: { sales: 2540, customers: 87, low_stock: 12, profit: 740 },
-            pharmacy:    { sales: 1850, prescriptions: 25, expired: 4, profit: 620 },
-            clinic:      { appointments_today: 18, total_patients: 342, revenue: 3600, pending: 5 },
-            restaurant:  { sales: 2900, orders: 64, tables: 8, profit: 980 },
-            realestate:  { properties: 42, rented: 35, available: 7, revenue: 18500 },
-            fashion:     { sales: 1750, items: 43, customers: 21, profit: 530 },
-        };
-        return mockMap[type] || {};
-    }
-
-    /* ============================================================
-       [15] SHOW DASHBOARD — sets up sidebar + stats + chart
-    ============================================================ */
-    function showDashboard(type) {
-        const cfg = instConfigs[type] || instConfigs.supermarket;
-
-        // Update sidebar user info
-        $sidebarInstLabel.textContent = cfg.label;
-
-        // Build sidebar menu
-        $sidebarMenu.innerHTML = `
-            <div class="menu-section-label">القائمة الرئيسية</div>
-            ${cfg.menu.map((m, i) => `
-                <button
-                    class="sidebar-btn ${i === 0 ? 'active' : ''}"
-                    onclick="navigateTo('${m.id}', this)"
-                >
-                    <i class="fas ${m.icon}"></i>
-                    <span>${m.text}</span>
-                </button>
-            `).join('')}
-        `;
-
-        // Show main dashboard
-        $mainDashboard.classList.remove('hidden');
-
-        // Render stats
-        renderStats(type, currentUserData?.stats || getMockStats(type));
-
-        // Render chart
-        renderChart(type, cfg);
-
-        // Render quick actions
-        renderQuickActions(cfg);
-
-        // Populate mock inventory table
-        renderMockInventory(type);
-
-        // Update page title to "الرئيسية"
-        document.getElementById('current-page-title').textContent = 'الرئيسية';
-        document.getElementById('current-page-sub').textContent   = cfg.title;
-
-        // Ensure dashboard page is active
-        document.querySelectorAll('.page-section').forEach(p => p.classList.remove('active'));
-        document.getElementById('page-dashboard').classList.add('active');
-    }
-
-    /* ============================================================
-       [16] RENDER STATS CARDS
-    ============================================================ */
-    function renderStats(type, statsObj) {
-        const cfg = instConfigs[type];
-        if (!cfg || !statsObj) return;
-
-        $dashboardStats.innerHTML = cfg.stats.map(s => `
-            <div class="stat-card">
-                <div class="stat-icon ${s.color}">
-                    <i class="fas ${s.icon}"></i>
-                </div>
-                <div>
-                    <div class="stat-label">${s.label}</div>
-                    <div class="stat-value">${(statsObj[s.key] ?? 0).toLocaleString('ar')}${s.suffix}</div>
-                </div>
-            </div>
-        `).join('');
-    }
-
-    /* ============================================================
-       [17] RENDER CHART (Chart.js line chart)
-    ============================================================ */
-    function renderChart(type, cfg) {
-        const ctx = document.getElementById('main-chart');
-        if (!ctx) return;
-
-        if (chartInstance) { chartInstance.destroy(); chartInstance = null; }
-
-        const isDark = document.documentElement.classList.contains('dark-mode');
-        const gridColor  = isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)';
-        const labelColor = isDark ? '#94a3b8' : '#64748b';
-
-        chartInstance = new Chart(ctx, {
-            type: 'line',
-            data: {
-                labels: ['السبت', 'الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة'],
-                datasets: [{
-                    label: cfg.chartLabel,
-                    data: cfg.chartData,
-                    borderColor: cfg.chartColor,
-                    backgroundColor: cfg.chartColor + '18',
-                    borderWidth: 3,
-                    fill: true,
-                    tension: 0.45,
-                    pointBackgroundColor: cfg.chartColor,
-                    pointBorderColor: '#fff',
-                    pointBorderWidth: 2,
-                    pointRadius: 5,
-                }],
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                interaction: { mode: 'index', intersect: false },
-                plugins: {
-                    legend: {
-                        labels: { font: { family: 'Tajawal', size: 13 }, color: labelColor },
-                    },
-                    tooltip: {
-                        backgroundColor: '#0f172a',
-                        titleFont: { family: 'Tajawal', size: 13 },
-                        bodyFont:  { family: 'Tajawal', size: 13 },
-                        padding: 12,
-                        cornerRadius: 10,
-                    },
-                },
-                scales: {
-                    x: {
-                        ticks: { font: { family: 'Tajawal', size: 12 }, color: labelColor },
-                        grid:  { color: gridColor },
-                    },
-                    y: {
-                        ticks: { font: { family: 'Tajawal', size: 12 }, color: labelColor },
-                        grid:  { color: gridColor },
-                    },
-                },
-            },
-        });
-
-        document.getElementById('chart-title').textContent = cfg.chartLabel + ' – آخر 7 أيام';
-    }
-
-    /* ============================================================
-       [18] RENDER QUICK ACTIONS
-    ============================================================ */
-    function renderQuickActions(cfg) {
-        const container = document.getElementById('quick-actions-container');
-        if (!container) return;
-        container.innerHTML = cfg.quickActions.map(qa => `
-            <div class="qa-card" onclick="navigateTo('${qa.page}', document.querySelector('.sidebar-btn[onclick*=\\'${qa.page}\\']'))">
-                <i class="fas ${qa.icon}" style="color:${qa.color};"></i>
-                <span>${qa.text}</span>
-            </div>
-        `).join('');
-    }
-
-    /* ============================================================
-       [19] RENDER MOCK INVENTORY TABLE
-       جدول تجريبي في صفحة المخزون — استبدله ببيانات حقيقية لاحقاً
-    ============================================================ */
-    function renderMockInventory(type) {
-        const tbody = document.getElementById('inventory-table-body');
-        if (!tbody) return;
-
-        const mockItems = {
-            supermarket: [
-                { name: 'أرز بسمتي', cat: 'حبوب',    qty: 45, cost: 12, status: 'success', statusText: 'متوفر' },
-                { name: 'زيت دوار الشمس', cat: 'زيوت', qty: 8, cost: 22, status: 'warning', statusText: 'قليل' },
-                { name: 'سكر أبيض', cat: 'منتجات أساسية', qty: 2, cost: 8, status: 'danger', statusText: 'نافد' },
-                { name: 'معكرونة', cat: 'معلبات', qty: 120, cost: 5, status: 'success', statusText: 'متوفر' },
-            ],
-            pharmacy: [
-                { name: 'باراسيتامول', cat: 'مسكنات',  qty: 200, cost: 2.5, status: 'success', statusText: 'متوفر' },
-                { name: 'أموكسيسيلين', cat: 'مضادات',  qty: 30,  cost: 18,  status: 'warning', statusText: 'قليل' },
-                { name: 'فيتامين C', cat: 'فيتامينات', qty: 5,   cost: 12,  status: 'danger',  statusText: 'نافد' },
-                { name: 'ميتفورمين', cat: 'سكري',      qty: 88,  cost: 9,   status: 'success', statusText: 'متوفر' },
-            ],
-            default: [
-                { name: 'صنف 1', cat: 'فئة أ', qty: 50,  cost: 15, status: 'success', statusText: 'متوفر' },
-                { name: 'صنف 2', cat: 'فئة ب', qty: 12,  cost: 30, status: 'warning', statusText: 'قليل' },
-                { name: 'صنف 3', cat: 'فئة أ', qty: 0,   cost: 8,  status: 'danger',  statusText: 'نافد' },
-                { name: 'صنف 4', cat: 'فئة ج', qty: 200, cost: 5,  status: 'success', statusText: 'متوفر' },
-            ],
-        };
-
-        const items = mockItems[type] || mockItems.default;
-        tbody.innerHTML = items.map((item, i) => `
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon green"><i class="fas fa-hand-holding-dollar"></i></div>
+        <div>
+            <div class="stat-label">إجمالي التعويضات المحتملة</div>
+            <div class="stat-value" id="statCompTotal">—</div>
+        </div>
+    </div>
+</div>
+
+<!-- Filter Bar -->
+<div class="filter-bar">
+    <div class="search-wrap">
+        <i class="fas fa-magnifying-glass"></i>
+        <input type="text" id="searchInput" placeholder="بحث بالاسم أو الاشتراك أو الرقم..." oninput="renderTable()">
+    </div>
+    <select class="filter-select" id="filterUrgency" onchange="renderTable()">
+        <option value="all">جميع الاشتراكات</option>
+        <option value="urgent">تنتهي خلال 7 أيام</option>
+        <option value="warning">تنتهي خلال 15 يوم</option>
+        <option value="safe">أكثر من 15 يوم</option>
+    </select>
+    <select class="filter-select" id="sortBy" onchange="renderTable()">
+        <option value="expiry_asc">الأقرب انتهاءً أولاً</option>
+        <option value="expiry_desc">الأبعد انتهاءً أولاً</option>
+        <option value="comp_desc">الأعلى تعويضاً أولاً</option>
+        <option value="date_desc">الأحدث إضافةً أولاً</option>
+    </select>
+    <button class="refresh-btn" id="refreshBtn" onclick="loadData()">
+        <i class="fas fa-rotate-right"></i> تحديث
+    </button>
+</div>
+
+<!-- Table -->
+<div class="table-wrap">
+    <table id="mainTable">
+        <thead>
             <tr>
-                <td>${i + 1}</td>
-                <td><strong>${item.name}</strong></td>
-                <td class="text-muted">${item.cat}</td>
-                <td>${item.qty}</td>
-                <td>${item.cost} ₪</td>
-                <td><span class="badge badge-${item.status}">${item.statusText}</span></td>
+                <th>#</th>
+                <th>العميل</th>
+                <th>رقم الهاتف</th>
+                <th>الاشتراك</th>
+                <th>تاريخ البدء</th>
+                <th>تاريخ الانتهاء</th>
+                <th>الأيام المتبقية</th>
+                <th>المدفوع</th>
+                <th>التعويض المحتمل</th>
+                <th>نسبة الاستهلاك</th>
             </tr>
-        `).join('');
-    }
+        </thead>
+        <tbody id="tableBody">
+        </tbody>
+    </table>
+    <div id="emptyState" class="empty-state" style="display:none;">
+        <i class="fas fa-inbox"></i>
+        <p>لا توجد اشتراكات نشطة تطابق البحث</p>
+    </div>
+</div>
 
-    /* ============================================================
-       [20] RE-RENDER CHART ON DARK MODE CHANGE
-       نعيد رسم الـ chart عند تبديل الوضع الليلي لتحديث الألوان
-    ============================================================ */
-    $darkToggle.addEventListener('click', () => {
-        if (currentUserData?.institution_type) {
-            const cfg = instConfigs[currentUserData.institution_type];
-            if (cfg) setTimeout(() => renderChart(currentUserData.institution_type, cfg), 350);
+<div class="page-footer">Mega Store · متابعة الاشتراكات النشطة</div>
+
+<script>
+// ─── Firebase Config ───────────────────────────────────────────
+const firebaseConfig = {
+    apiKey: "AIzaSyBDCTQSHeRD7gG4XdyG1nQxAD1ECQHzxNE",
+    authDomain: "mega-store-58cc6.firebaseapp.com",
+    projectId: "mega-store-58cc6",
+    storageBucket: "mega-store-58cc6.firebasestorage.app",
+    messagingSenderId: "477692639493",
+    appId: "1:477692639493:web:3520e16e20fa0fda089f6c"
+};
+
+let db = null;
+let allPurchases = [];
+
+// ─── Init ──────────────────────────────────────────────────────
+window.onload = function() {
+    const app = firebase.initializeApp(firebaseConfig);
+    db = firebase.firestore(app);
+    loadData();
+};
+
+// ─── Load Data ─────────────────────────────────────────────────
+async function loadData() {
+    const btn = document.getElementById('refreshBtn');
+    btn.classList.add('spinning');
+    try {
+        const snap = await db.collection('megastore').doc('data').collection('purchases').get();
+        allPurchases = snap.docs.map(d => ({ ...d.data(), _docId: d.id }));
+        renderAll();
+        document.getElementById('lastUpdate').textContent = new Date().toLocaleTimeString('ar-EG');
+    } catch(e) {
+        console.error(e);
+        alert('خطأ في الاتصال بقاعدة البيانات: ' + e.message);
+    } finally {
+        btn.classList.remove('spinning');
+        hideLoading();
+    }
+}
+
+function hideLoading() {
+    const s = document.getElementById('loadingScreen');
+    s.style.opacity = '0';
+    setTimeout(() => s.style.display = 'none', 500);
+}
+
+// ─── Active Subscriptions Filter ──────────────────────────────
+function getActiveSales() {
+    const now = Date.now();
+    return allPurchases.filter(p =>
+        !p.isComp &&
+        !p.isPledge &&
+        !p.pledgeId &&
+        p.expiry &&
+        p.expiry > now
+    );
+}
+
+// ─── Parse paid amount ─────────────────────────────────────────
+function parsePaid(paidStr) {
+    if (!paidStr) return { num: 0, cur: '₪' };
+    const num = parseFloat(String(paidStr).replace(/[^0-9.\-]/g, '')) || 0;
+    const cur = String(paidStr).includes('$') ? '$' : '₪';
+    return { num, cur };
+}
+
+// ─── Calculate compensation ────────────────────────────────────
+// compensation = paid × (remaining days / total days)
+function calcCompensation(p) {
+    if (!p.expiry || !p.date) return null;
+    const startMs = new Date(p.date + 'T00:00:00').getTime();
+    const now     = Date.now();
+    const totalMs = p.expiry - startMs;
+    const remainMs = p.expiry - now;
+    if (totalMs <= 0 || remainMs <= 0) return { amount: 0, cur: '₪', pct: 0 };
+    const { num, cur } = parsePaid(p.paid);
+    const pct = remainMs / totalMs;               // نسبة الأيام المتبقية
+    const amount = +(num * pct).toFixed(2);
+    return { amount, cur, pct };
+}
+
+function daysLeft(expiry) {
+    return Math.max(0, Math.ceil((expiry - Date.now()) / 86400000));
+}
+
+function totalDays(p) {
+    if (!p.expiry || !p.date) return 1;
+    const startMs = new Date(p.date + 'T00:00:00').getTime();
+    return Math.max(1, Math.round((p.expiry - startMs) / 86400000));
+}
+
+function elapsedDays(p) {
+    if (!p.date) return 0;
+    const startMs = new Date(p.date + 'T00:00:00').getTime();
+    return Math.round((Date.now() - startMs) / 86400000);
+}
+
+function formatDate(ts) {
+    if (!ts) return '—';
+    return new Date(ts).toLocaleDateString('ar-EG', { year:'numeric', month:'short', day:'numeric' });
+}
+
+function esc(s) {
+    return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ─── Render All ────────────────────────────────────────────────
+function renderAll() {
+    const active = getActiveSales();
+    const now = Date.now();
+    const urgent  = active.filter(p => daysLeft(p.expiry) <= 7);
+    const warning = active.filter(p => daysLeft(p.expiry) > 7 && daysLeft(p.expiry) <= 15);
+
+    document.getElementById('statTotal').textContent   = active.length;
+    document.getElementById('statUrgent').textContent  = urgent.length;
+    document.getElementById('statWarning').textContent = warning.length;
+
+    // Total compensation
+    let totalCompShekels = 0;
+    let totalCompDollar  = 0;
+    active.forEach(p => {
+        const c = calcCompensation(p);
+        if (c) {
+            if (c.cur === '$') totalCompDollar  += c.amount;
+            else               totalCompShekels += c.amount;
         }
     });
+    let compText = '';
+    if (totalCompShekels > 0) compText += fix(totalCompShekels) + ' ₪';
+    if (totalCompDollar  > 0) compText += (compText ? '  +  ' : '') + fix(totalCompDollar) + ' $';
+    document.getElementById('statCompTotal').textContent = compText || '0 ₪';
 
+    renderTable();
+}
+
+function fix(n) { return Number(n).toFixed(2).replace(/\.?0+$/, ''); }
+
+// ─── Render Table ──────────────────────────────────────────────
+function renderTable() {
+    const query    = document.getElementById('searchInput').value.trim().toLowerCase();
+    const urgency  = document.getElementById('filterUrgency').value;
+    const sortBy   = document.getElementById('sortBy').value;
+
+    let rows = getActiveSales();
+
+    // Search
+    if (query) {
+        rows = rows.filter(p =>
+            (p.customer || '').toLowerCase().includes(query) ||
+            (p.sub      || '').toLowerCase().includes(query) ||
+            (p.phone    || '').toLowerCase().includes(query)
+        );
+    }
+
+    // Urgency filter
+    if (urgency === 'urgent')  rows = rows.filter(p => daysLeft(p.expiry) <= 7);
+    if (urgency === 'warning') rows = rows.filter(p => daysLeft(p.expiry) > 7 && daysLeft(p.expiry) <= 15);
+    if (urgency === 'safe')    rows = rows.filter(p => daysLeft(p.expiry) > 15);
+
+    // Sort
+    if (sortBy === 'expiry_asc')  rows.sort((a,b) => (a.expiry||0) - (b.expiry||0));
+    if (sortBy === 'expiry_desc') rows.sort((a,b) => (b.expiry||0) - (a.expiry||0));
+    if (sortBy === 'comp_desc')   rows.sort((a,b) => (calcCompensation(b)?.amount||0) - (calcCompensation(a)?.amount||0));
+    if (sortBy === 'date_desc')   rows.sort((a,b) => (b.date||'').localeCompare(a.date||''));
+
+    const tbody = document.getElementById('tableBody');
+    const emptyState = document.getElementById('emptyState');
+
+    if (rows.length === 0) {
+        tbody.innerHTML = '';
+        emptyState.style.display = 'block';
+        return;
+    }
+    emptyState.style.display = 'none';
+
+    tbody.innerHTML = rows.map((p, i) => {
+        const dl  = daysLeft(p.expiry);
+        const td  = totalDays(p);
+        const ed  = elapsedDays(p);
+        const pct = Math.min(100, Math.round((ed / td) * 100));
+        const comp = calcCompensation(p);
+        const { num: paidNum, cur: paidCur } = parsePaid(p.paid);
+
+        // Badge class
+        let badgeClass = 'safe';
+        if (dl <= 7)  badgeClass = 'urgent';
+        else if (dl <= 15) badgeClass = 'warning';
+
+        // Progress color
+        let progColor = '#10b981';
+        if (pct >= 85) progColor = '#ef4444';
+        else if (pct >= 65) progColor = '#f59e0b';
+
+        // Duration label
+        const durLabel = p.duration ? p.duration + ' شهر' : '—';
+
+        // Compensation display
+        const compDisplay = comp
+            ? `<span class="comp-badge"><i class="fas fa-coins"></i>${fix(comp.amount)} ${esc(comp.cur)}</span>`
+            : '<span style="color:var(--muted);font-size:12px;">—</span>';
+
+        return `<tr>
+            <td style="color:var(--muted);font-weight:700;font-size:13px;">${i+1}</td>
+            <td class="customer-cell">${esc(p.customer || 'عميل')}</td>
+            <td class="phone-cell">${esc(p.phone || '—')}</td>
+            <td class="sub-cell">${esc(p.sub || '—')}</td>
+            <td class="date-cell">${formatDate(new Date(p.date + 'T00:00:00').getTime())}</td>
+            <td class="date-cell">${formatDate(p.expiry)}</td>
+            <td>
+                <span class="days-badge ${badgeClass}">
+                    <i class="fas fa-${dl <= 7 ? 'fire' : dl <= 15 ? 'clock' : 'calendar-check'}"></i>
+                    ${dl} يوم
+                </span>
+            </td>
+            <td class="paid-cell">${esc(p.paid || '—')}</td>
+            <td>${compDisplay}</td>
+            <td>
+                <div class="progress-wrap">
+                    <div style="font-size:11px;font-weight:700;color:var(--muted);text-align:center;">${pct}% مستهلك</div>
+                    <div class="progress-bar-bg">
+                        <div class="progress-bar-fill" style="width:${pct}%;background:${progColor};"></div>
+                    </div>
+                </div>
+            </td>
+        </tr>`;
+    }).join('');
+}
 </script>
 </body>
 </html>
